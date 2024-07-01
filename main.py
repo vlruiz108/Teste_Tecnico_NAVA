@@ -1,53 +1,46 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import sum as _sum, lag, coalesce
-from pyspark.sql.window import Window
+from pyspark.sql.functions import col, when, sum, lit
 
+# Inicialização do SparkSession
+spark = SparkSession.builder \
+    .appName("Calculo Saldo Conta Corrente") \
+    .getOrCreate()
 
-def create_spark_session():
-    return SparkSession.builder.master("local").appName("SaldoClientes").getOrCreate()
+# Caminho dos arquivos
+base_path = "C:/Users/Vanessa/Desktop/Teste_Tecnico_NAVA/bases/"
+saldo_inicial_file = base_path + "tabela_saldo_inicial.txt"
+movimentacoes_files = [
+    base_path + "movimentacao_dia_02_04_2022.txt",
+    base_path + "movimentacao_dia_03_04_2022.txt"
+]
 
+# Função para calcular saldo diário
+def calcular_saldo_diario(saldo_inicial_file, movimentacoes_files):
+    # Carregando o arquivo de saldo inicial
+    saldo_inicial_df = spark.read.option("delimiter", ";").csv(saldo_inicial_file, header=True, inferSchema=True)
+    
+    # Calculando saldo inicial por CPF
+    saldo_inicial = saldo_inicial_df.groupBy("CPF").agg(sum("Saldo_Inicial_CC").alias("Saldo_Inicial"))
+    
+    # Processando movimentações
+    movimentacoes_df = None
+    for mov_file in movimentacoes_files:
+        mov_df = spark.read.option("delimiter", ";").csv(mov_file, header=True, inferSchema=True)
+        if movimentacoes_df is None:
+            movimentacoes_df = mov_df
+        else:
+            movimentacoes_df = movimentacoes_df.union(mov_df)
+    
+    # Juntando saldo inicial com movimentações
+    saldo_atualizado = saldo_inicial.join(movimentacoes_df, on="CPF", how="left_outer") \
+        .withColumn("Saldo_Final", when(col("Saldo_Inicial").isNull(), lit(0)).otherwise(col("Saldo_Inicial")) + col("Movimentacao_dia"))
+    
+    # Ordenando e mostrando resultados
+    saldo_atualizado.orderBy("data", "CPF").show()
 
-def create_dataframe(spark, data, schema):
-    return spark.createDataFrame(data, schema=schema)
+# Chamando a função principal
+calcular_saldo_diario(saldo_inicial_file, movimentacoes_files)
 
+# Encerrando a sessão Spark
+spark.stop()
 
-def calculate_saldo(df):
-    windowSpec = Window.partitionBy("cliente_id").orderBy("data")
-
-    # Calcular saldo inicial usando a função `lag`
-    df = df.withColumn("saldo_inicial", lag("saldo_final_atualizado", 1, 0).over(windowSpec))
-
-    # Acumular as movimentações para calcular o saldo final
-    df = df.withColumn("saldo_final", _sum("movimentacao").over(windowSpec))
-
-    # Reprocessar saldos para considerar estornos
-    df = df.withColumn("saldo_final", coalesce(df["saldo_final"], 0))
-    df_reprocess = df.withColumn("saldo_final_atualizado", coalesce(df["saldo_inicial"], 0) + df["saldo_final"]).orderBy("data")
-
-    return df_reprocess
-
-
-def main():
-    spark = create_spark_session()
-
-    schema = ["data", "cliente_id", "movimentacao"]
-
-    data = [
-        ("2022-04-01", "Cliente 01", 100.00),
-        ("2022-04-02", "Cliente 01", -50.00),
-        ("2022-04-03", "Cliente 01", 50.00),
-        ("2022-04-03", "Cliente 01", 50.00),
-        ("2022-04-01", "Cliente 02", 200.00),
-        ("2022-04-02", "Cliente 02", -100.00),
-        ("2022-04-03", "Cliente 02", 100.00),
-    ]
-
-    df = create_dataframe(spark, data, schema)
-    df_final = calculate_saldo(df)
-    df_final.select("data", "cliente_id", "saldo_final_atualizado").orderBy("data", "cliente_id").show(truncate=False)
-
-    spark.stop()
-
-
-if __name__ == "__main__":
-    main()
