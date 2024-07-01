@@ -30,19 +30,34 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Estrutura do Script
+## Detalhes da Implementação
 
-O script `main.py` segue os seguintes passos:
-1. Importação das Bibliotecas Necessárias
+O script main.py realiza as seguintes etapas:
+1. Importa as bibliotecas necessárias, incluindo PySpark.
 2. Criação da Sessão do Spark
-3. Definição do Esquema dos Dados e Simulação das Movimentações Diárias
+3. Carrega os dados de saldo inicial e movimentações por data.
 4. Cálcula os saldos:
-    - Ordenação por data e cliente
+    - Ordena por data e cliente
     - Cálculo do saldo inicial
-    - Acumulação das movimentações para calcular o saldo final
-    - Reprocessamento de saldos para considerar estornos
-    - Juntada dos saldos diários com a movimentação para o saldo final atualizado
-5. Exibição do Saldo Final
-6. Encerramento da Sessão do Spark
+    - Acumula as movimentações diárias para calcular o saldo final.
+    - Reprocessa os saldos para considerar estornos.
+    - Junta os saldos diários com as movimentações para obter o saldo final atualizado.
+5. Exibe o resultado final com os saldos atualizados por cliente e data.
+6. Encerra a sessão do Spark após o processamento.
 
-Este projeto foi desenvolvido como parte de um teste técnico para demonstrar habilidades em processamento distribuído com PySpark e manipulação de dados complexos para cálculo de saldos em contas correntes.
+## Resultados
+
+Aqui estão os saldos atualizados de contas correntes de clientes por data:
+
+| Data       | Cliente | Saldo Final |
+|------------|---------|-------------|
+| 02/04/2022 | Cliente 1 | 50,00 |
+| 02/04/2022 | Cliente 2 | 238,95 |
+| 02/04/2022 | Cliente 3 | 395,06 |
+| ...        | ...     | ...         |
+| 03/04/2022 | Cliente 1 | 150,00 |
+| 03/04/2022 | Cliente 2 | 974,58 |
+| 03/04/2022 | Cliente 3 | 1409,91 |
+| ...        | ...     | ...         |
+
+Os resultados mostram o saldo final de cada cliente para cada data processada, permitindo visualizar a evolução dos saldos ao longo do tempo e identificar movimentações e estornos conforme especificado no desafio.
